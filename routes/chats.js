@@ -6,45 +6,62 @@ const express = require("express");
 const router = express.Router();
 
 router.get("/", auth, async (req, res, next) => {
-  // const userChats = Chat.find(chat =>
-  //   chat.users.contains(user => user.username === req.user.username)
-  // );
-  const userChats = await Chat.find();
+  const userChats = await Chat.find({
+    users: {
+      $elemMatch: {
+        username: req.user.username
+      }
+    }
+  });
 
   console.log(userChats);
 
   res.send({ chats: userChats });
-  //res
-  // .header("x-auth_token", token)
-  // .send(_.pick(user, ["_id", "name", "email"]));
 });
 
 router.post("/", auth, async (req, res, next) => {
-  // const users = User.find(user => req.body.users.includes(user.username));
+  const usersInChat = req.body.users; //req.body.users.map(user => ({ username: user.username }));
+  //const usersInChat = [{ username: "Jim" }, { username: "bob" }];
 
-  // console.log(users);
-  // let userArray = users.map(user => ({
-  //   username: user.username,
-  //   picture: user.picture
-  // }));
+  // const foundChat = await Chat.findOne({
+  //   users: {
+  //     $all: [
+  //       { $elemMatch: { username: "Jim" } },
+  //       { $elemMatch: { username: "bob" } }
+  //     ],
+  //     $size: usersInChat.length
+  //   }
+  // });
 
-  const newChat = new Chat({
-    users: req.body.users,
-    messages: [req.body.message]
+  let match_rules = [];
+  usersInChat.forEach(element => {
+    match_rules.push({
+      $elemMatch: {
+        username: element.username
+      }
+    });
   });
 
-  console.log(newChat);
+  let chat = await Chat.findOne({
+    users: { $all: match_rules, $size: usersInChat.length }
+  });
+
+  if (chat) {
+    chat.messages.push(req.body.message);
+  } else {
+    chat = new Chat({
+      users: req.body.users,
+      messages: [req.body.message]
+    });
+  }
 
   try {
-    newChat.save();
+    chat.save();
   } catch (err) {
     return next(new HttpError("Could not create chat, server error.", 500));
   }
 
-  res.send({ chat: newChat });
-  //res
-  // .header("x-auth_token", token)
-  // .send(_.pick(user, ["_id", "name", "email"]));
+  res.send({ chat: chat });
 });
 
 module.exports = router;
