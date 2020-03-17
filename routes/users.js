@@ -78,4 +78,17 @@ router.post("/", fileUpload.single("picture"), async (req, res, next) => {
   // .send(_.pick(user, ["_id", "name", "email"]));
 });
 
+router.get("/", async (req, res, next) => {
+  const foundUsers = await User.find();
+
+  if (!foundUsers) return next(new HttpError("Users not found.", 404));
+
+  const users = foundUsers.map(user => ({
+    username: user.username,
+    picture: user.picture
+  }));
+
+  res.send({ users: users });
+});
+
 module.exports = router;

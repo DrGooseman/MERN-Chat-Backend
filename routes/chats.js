@@ -1,32 +1,47 @@
 const auth = require("../middleware/auth");
 const { User } = require("../models/user");
+const { Chat } = require("../models/chat");
 const _ = require("lodash");
 const express = require("express");
 const router = express.Router();
 
-router.post("/", auth, async (req, res) => {
-  //return next(new HttpError("Username already in use.", 400));
-  let user = await User.findOne({ email: req.body.email });
-  if (user) return res.status(400).send({ message: "Email already in use." });
+router.get("/", auth, async (req, res, next) => {
+  // const userChats = Chat.find(chat =>
+  //   chat.users.contains(user => user.username === req.user.username)
+  // );
+  const userChats = await Chat.find();
 
-  user = new User(_.pick(req.body, ["name", "email", "password", "lang"]));
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(user.password, salt);
+  console.log(userChats);
 
-  user.allLangs["words" + req.body.lang] = getPopulatedWordsNewUser(
-    req.body.lang
-  );
+  res.send({ chats: userChats });
+  //res
+  // .header("x-auth_token", token)
+  // .send(_.pick(user, ["_id", "name", "email"]));
+});
 
-  await user.save();
+router.post("/", auth, async (req, res, next) => {
+  // const users = User.find(user => req.body.users.includes(user.username));
 
-  const token = user.generateAuthToken();
-  res.json({
-    _id: user._id,
-    email: user.email,
-    name: user.name,
-    token,
-    lang: user.lang
+  // console.log(users);
+  // let userArray = users.map(user => ({
+  //   username: user.username,
+  //   picture: user.picture
+  // }));
+
+  const newChat = new Chat({
+    users: req.body.users,
+    messages: [req.body.message]
   });
+
+  console.log(newChat);
+
+  try {
+    newChat.save();
+  } catch (err) {
+    return next(new HttpError("Could not create chat, server error.", 500));
+  }
+
+  res.send({ chat: newChat });
   //res
   // .header("x-auth_token", token)
   // .send(_.pick(user, ["_id", "name", "email"]));
