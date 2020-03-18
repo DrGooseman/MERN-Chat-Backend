@@ -5,7 +5,12 @@ const chats = require("./routes/chats");
 //const auth = require("../routes/auth");
 const express = require("express");
 
-module.exports = function(app) {
+module.exports = function(app, io, socketList) {
+  app.use((req, res, next) => {
+    res.io = io;
+    res.socketList = socketList;
+    next();
+  });
   app.use(express.json());
 
   app.use("/api/users", users);

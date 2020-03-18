@@ -1,10 +1,15 @@
 const express = require("express");
 const app = express();
-const bodyParser = require("body-parser");
-const path = require("path");
+
+const port = process.env.PORT || 5000;
+const server = app.listen(port, () =>
+  console.log(`Listening on port ${port}...`)
+);
+
+const socketList = {};
+const io = require("./middleware/sockets")(server, socketList);
+
 require("dotenv").config();
-//const cors = require("cors");
-//app.use(cors());
 const fileDownload = require("./middleware/file-download");
 const HttpError = require("./models/http-error");
 
@@ -21,7 +26,7 @@ app.use((req, res, next) => {
   next();
 });
 
-require("./routes")(app);
+require("./routes")(app, io, socketList);
 require("./db")();
 
 app.use((req, res, next) => {
@@ -39,8 +44,4 @@ app.use((error, req, res, next) => {
   res.json({ message: error.message || "An unknown error occurred!" });
 });
 
-const port = process.env.PORT || 5000;
-const server = app.listen(port, () =>
-  console.log(`Listening on port ${port}...`)
-);
 module.exports = server;

@@ -1,5 +1,4 @@
 const auth = require("../middleware/auth");
-const { User } = require("../models/user");
 const { Chat } = require("../models/chat");
 const _ = require("lodash");
 const express = require("express");
@@ -13,8 +12,6 @@ router.get("/", auth, async (req, res, next) => {
       }
     }
   });
-
-  console.log(userChats);
 
   res.send({ chats: userChats });
 });
@@ -60,6 +57,10 @@ router.post("/", auth, async (req, res, next) => {
   } catch (err) {
     return next(new HttpError("Could not create chat, server error.", 500));
   }
+
+  usersInChat.forEach(user =>
+    res.io.to(res.socketList[user.username]).emit("updateChat", chat)
+  );
 
   res.send({ chat: chat });
 });
