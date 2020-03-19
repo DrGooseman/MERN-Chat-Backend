@@ -4,6 +4,8 @@ const _ = require("lodash");
 const express = require("express");
 const router = express.Router();
 
+const HttpError = require("../models/http-error");
+
 router.get("/", auth, async (req, res, next) => {
   const userChats = await Chat.find({
     users: {
@@ -61,6 +63,93 @@ router.post("/", auth, async (req, res, next) => {
   usersInChat.forEach(user =>
     res.io.to(res.socketList[user.username]).emit("updateChat", chat)
   );
+
+  res.send({ chat: chat });
+});
+
+router.patch("/", auth, async (req, res, next) => {
+  const chat = await Chat.findById(req.body.chatId);
+
+  if (!chat) return next(new HttpError("No chat found with this id.", 404));
+
+  chat.messages.push(req.body.message);
+
+  try {
+    chat.save();
+  } catch (err) {
+    return next(new HttpError("Could not add message, server error.", 500));
+  }
+
+  chat.users.forEach(user => {
+    if (res.socketList[user.username])
+      res.io.to(res.socketList[user.username]).emit("updateChat", chat);
+  });
+
+  res.send({ chat: chat });
+});
+
+router.patch("/users", auth, async (req, res, next) => {
+  const chat = await Chat.findById(req.body.chatId);
+  const newUsers = req.body.users;
+
+  if (!chat) return next(new HttpError("No chat found with this id.", 404));
+
+  console.log(newUsers);
+
+  const usersInChat = [...chat.users];
+  console.log(usersInChat);
+  let usersAddedMessage = "";
+  for (let i = 0; i < newUsers.length; i++) {
+    if (!newUsers[i].username || !newUsers[i].picture)
+      return next(new HttpError("Invalid inputs.", 422));
+    usersInChat.push({
+      username: newUsers[i].username,
+      picture: newUsers[i].picture
+    });
+    if (usersAddedMessage.length > 0) usersAddedMessage += ", ";
+    usersAddedMessage += newUsers[i].username + "";
+  }
+
+  //check if this new chat already exists
+
+  let match_rules = [];
+  usersInChat.forEach(element => {
+    match_rules.push({
+      $elemMatch: {
+        username: element.username
+      }
+    });
+  });
+
+  console.log(usersInChat.length);
+
+  let existingChat = await Chat.findOne({
+    users: { $all: match_rules, $size: usersInChat.length }
+  });
+
+  console.log(existingChat);
+
+  if (existingChat)
+    return next(new HttpError("New chat with users already exists.", 403));
+
+  // chat.users.push(newUser);
+  chat.users = usersInChat;
+
+  chat.messages.push({
+    message: usersAddedMessage + " added.",
+    date: new Date()
+  });
+
+  try {
+    chat.save();
+  } catch (err) {
+    return next(new HttpError("Could not add user, server error.", 500));
+  }
+
+  chat.users.forEach(user => {
+    if (res.socketList[user.username])
+      res.io.to(res.socketList[user.username]).emit("updateChat", chat);
+  });
 
   res.send({ chat: chat });
 });
