@@ -94,14 +94,16 @@ router.patch("/users", auth, async (req, res, next) => {
 
   if (!chat) return next(new HttpError("No chat found with this id.", 404));
 
-  console.log(newUsers);
-
   const usersInChat = [...chat.users];
-  console.log(usersInChat);
+
   let usersAddedMessage = "";
   for (let i = 0; i < newUsers.length; i++) {
     if (!newUsers[i].username || !newUsers[i].picture)
       return next(new HttpError("Invalid inputs.", 422));
+    if (usersInChat.some(user => user.username === newUsers[i].username)) {
+      continue;
+    }
+
     usersInChat.push({
       username: newUsers[i].username,
       picture: newUsers[i].picture
@@ -121,13 +123,9 @@ router.patch("/users", auth, async (req, res, next) => {
     });
   });
 
-  console.log(usersInChat.length);
-
   let existingChat = await Chat.findOne({
     users: { $all: match_rules, $size: usersInChat.length }
   });
-
-  console.log(existingChat);
 
   if (existingChat)
     return next(new HttpError("New chat with users already exists.", 403));
