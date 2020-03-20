@@ -4,6 +4,7 @@ const _ = require("lodash");
 const express = require("express");
 const router = express.Router();
 
+const fileUpload = require("../middleware/file-upload");
 const HttpError = require("../models/http-error");
 
 router.get("/", auth, async (req, res, next) => {
@@ -48,10 +49,14 @@ router.post("/", auth, async (req, res, next) => {
   if (chat) {
     chat.messages.push(req.body.message);
   } else {
-    chat = new Chat({
-      users: req.body.users,
-      messages: [req.body.message]
-    });
+    try {
+      chat = new Chat({
+        users: req.body.users,
+        messages: [req.body.message]
+      });
+    } catch (err) {
+      return next(new HttpError("Could not create chat, invalid input.", 400));
+    }
   }
 
   try {
@@ -151,5 +156,43 @@ router.patch("/users", auth, async (req, res, next) => {
 
   res.send({ chat: chat });
 });
+
+router.patch(
+  "/picture",
+  auth,
+  fileUpload.single("picture"),
+  async (req, res, next) => {
+    const chat = await Chat.findById(req.body.chatId);
+
+    if (!chat) return next(new HttpError("No chat found with this id.", 404));
+
+    if (!req.file)
+      return next(
+        new HttpError("Something is wrong with your attachment.", 400)
+      );
+
+    const message = {
+      date: new Date(),
+      user: req.body.user,
+      messageType: "picture"
+    };
+    message.message = req.file.key;
+
+    chat.messages.push(message);
+
+    try {
+      chat.save();
+    } catch (err) {
+      return next(new HttpError("Could not add message, server error.", 500));
+    }
+
+    chat.users.forEach(user => {
+      if (res.socketList[user.username])
+        res.io.to(res.socketList[user.username]).emit("updateChat", chat);
+    });
+
+    res.send({ chat: chat });
+  }
+);
 
 module.exports = router;

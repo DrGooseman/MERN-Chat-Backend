@@ -11,8 +11,7 @@ module.exports = function(app, io, socketList) {
     res.socketList = socketList;
     next();
   });
-  app.use(express.json());
-
+  app.use(express.json({ limit: "50MB" }));
   app.use("/api/users", users);
 
   app.use("/api/chats", chats);

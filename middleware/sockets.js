@@ -6,9 +6,12 @@ module.exports = function(server, socketList) {
 
     socket.username = username;
 
+    console.log("connection " + socket.username);
+
     socketList[username] = socket.id;
 
     socket.on("disconnect", function() {
+      console.log("disconnect " + socket.username);
       socketList[socket.username] = undefined;
     });
   });

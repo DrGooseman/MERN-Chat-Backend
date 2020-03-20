@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const chatSchema = new mongoose.Schema({
   users: [{ username: String, picture: String }],
-  messages: [{ message: String, date: Date, user: String }]
+  messages: [{ message: String, date: Date, user: String, messageType: String }]
 });
 
 const Chat = new mongoose.model("Chat", chatSchema);
